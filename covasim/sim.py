@@ -603,7 +603,7 @@ class Sim(cvb.BaseSim):
             intervention(self) # If it's a function, call it directly
 
         people.update_states_post() # Check for state changes after interventions
-
+        """
         # Compute viral loads
         frac_time = cvd.default_float(self['viral_dist']['frac_time'])
         load_ratio = cvd.default_float(self['viral_dist']['load_ratio'])
@@ -612,7 +612,7 @@ class Sim(cvb.BaseSim):
         date_rec = people.date_recovered
         date_dead = people.date_dead
         viral_load = cvu.compute_viral_load(t, date_inf, date_rec, date_dead, frac_time, load_ratio, high_cap)
-
+        """
         # Shorten useful parameters
         nv = self['n_variants'] # Shorten number of variants
         sus = people.susceptible
