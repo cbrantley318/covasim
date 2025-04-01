@@ -603,7 +603,8 @@ class Sim(cvb.BaseSim):
             intervention(self) # If it's a function, call it directly
 
         people.update_states_post() # Check for state changes after interventions
-        """
+        """ 
+        BELOW IS COMMENTED OUT FOR SIMPLIFIED - DOUBLE CHECK IF PROBLEMS OCCUR
         # Compute viral loads
         frac_time = cvd.default_float(self['viral_dist']['frac_time'])
         load_ratio = cvd.default_float(self['viral_dist']['load_ratio'])
