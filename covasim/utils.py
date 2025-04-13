@@ -75,7 +75,6 @@ def compute_viral_load(t,     time_start, time_recovered, time_dead,  frac_time,
     load = np.ones(n, dtype=cvd.default_float) # allocate an array of ones with the correct dtype
     early = (t-time_start)/infect_days_total < trans_point # are we in the early or late phase
     load = (load_ratio * early + load * ~early)/(load+frac_time*(load_ratio-load)) # calculate load
-
     return load
 
 
@@ -87,6 +86,10 @@ def compute_trans_sus(rel_trans,  rel_sus,    inf,       sus,       beta_layer, 
     f_quar    = ~quar +  quar * quar_factor # Quarantine, changes e.g. [0,1] with a factor of 0.5 to [1,0.5]
     rel_trans = rel_trans * inf * f_quar * f_asymp * f_iso * beta_layer * viral_load # Recalculate transmissibility
     rel_sus   = rel_sus * sus * f_quar * (1-immunity_factors) # Recalculate susceptibility
+    # for elem in rel_sus:
+    #     if (elem != 1.0):
+    #         print(elem)
+    # print()
     return rel_trans, rel_sus
 
 

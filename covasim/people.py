@@ -167,7 +167,6 @@ class People(cvb.BasePeople):
         # Initialize
         self.t = t
         self.is_exp = self.true('exposed') # For storing the interim values since used in every subsequent calculation
-
         # Perform updates
         self.init_flows()
         self.flows['new_infectious']    += len(self.check_infectious()) # For people who are exposed and not infectious, check if they begin being infectious
@@ -488,7 +487,7 @@ class People(cvb.BasePeople):
         if len(breakthrough_inds):
             no_prior_breakthrough = (self.n_breakthroughs[breakthrough_inds] == 0) # We only adjust transmissibility for the first breakthrough
             new_breakthrough_inds = breakthrough_inds[no_prior_breakthrough]
-            self.rel_trans[new_breakthrough_inds] *= self.pars['trans_redux']
+            self.rel_trans[new_breakthrough_inds] *= self.pars['trans_redux']       # so it adjusts the transmissibility if it's their second time being infected
 
         # Update states, variant info, and flows
         n_infections = len(inds)
