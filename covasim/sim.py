@@ -708,7 +708,7 @@ class Sim(cvb.BaseSim):
 
         # Initialization steps -- start the timer, initialize the sim and the seed, and check that the sim hasn't been run
         T = sc.timer()
-
+        print("Starting C simulation")
         # Call the C interface
         N = self['pop_size']
         connections_per_person = 10  # Default value, can be adjusted based on your needs
