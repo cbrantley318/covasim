@@ -544,6 +544,7 @@ class Sim(cvb.BaseSim):
                 current_ratio = n_not_naive/n_people # Current proportion not naive
                 threshold = self['rescale_threshold'] # Threshold to trigger rescaling
                 if current_ratio > threshold: # Check if we've reached point when we want to rescale
+                    print("we rescaling it")
                     max_ratio = pop_scale/current_scale # We don't want to exceed the total population size
                     proposed_ratio = max(current_ratio/threshold, self['rescale_factor']) # The proposed ratio to rescale: the rescale factor, unless we've exceeded it
                     scaling_ratio = min(proposed_ratio, max_ratio) # We don't want to scale by more than the maximum ratio
@@ -598,6 +599,7 @@ class Sim(cvb.BaseSim):
         for variant in self['variants']:
             if isinstance(variant, cvimm.variant):
                 variant.apply(self)
+        # COMMENTED_OUT ; Not going to comment this out yet, but we will assume one variant at this time
 
         # Apply interventions
         for i,intervention in enumerate(self['interventions']):
@@ -668,18 +670,19 @@ class Sim(cvb.BaseSim):
             for variant in range(nv):
                 self.results['variant'][key][variant][t] += count[variant]
 
-        # Update nab and immunity for this time step
+        # Update nab and immunity for this time step # TODO this can be axed for now even though it's pretty important
         if self['use_waning']:
             has_nabs = cvu.true(people.peak_nab)
+            # print(people.peak_nab)
             if len(has_nabs):
                 cvimm.update_nab(people, inds=has_nabs)
 
-        inds_alive = cvu.false(people.dead)
+        inds_alive = cvu.false(people.dead) # TODO these results can be axed
         self.results['pop_nabs'][t]            = np.sum(people.nab[inds_alive[cvu.true(people.nab[inds_alive])]])/len(inds_alive)
         self.results['pop_protection'][t]      = np.nanmean(people.sus_imm)
         self.results['pop_symp_protection'][t] = np.nanmean(people.symp_imm)
 
-        # Apply analyzers -- same syntax as interventions
+        # Apply analyzers -- same syntax as interventions # assume none of these
         for i,analyzer in enumerate(self['analyzers']):
             analyzer(self)
 
@@ -770,22 +773,34 @@ class Sim(cvb.BaseSim):
     def finalize(self, verbose=None, restore_pars=True):
         ''' Compute final results '''
 
+        # TODO : make it so that self.results[] for n_infectious thru n_dead AND new_infectious thru new_dead arrays are all populated from the C code
+
         if self.results_ready:
             # Because the results are rescaled in-place, finalizing the sim cannot be run more than once or
             # otherwise the scale factor will be applied multiple times
             raise AlreadyRunError('Simulation has already been finalized')
 
         # Scale the results
+            # following comments were added by carson
+            # print(self.rescale_vec)
+            # print(self.results['cum_deaths']) # USELESS UNUSED THE CUMULATIVE COUNT DOES NOT MATTER AND ITS JUST EQUAL TO THE N_DEATHS (okay well not exactl but we don't allow reinfections soo...)
+            # print(self.results['new_deaths']) # these next two ARE used
+            # print(self.results['n_dead'])
         for reskey in self.result_keys():
             if self.results[reskey].scale: # Scale the result dynamically
+                # print(self.results[reskey].scale)
                 self.results[reskey].values *= self.rescale_vec
+                # print(self.results[reskey])
+                # print(self.results[reskey].values)
+                # print(reskey)
+                # print(self.results[reskey].name)
         for reskey in self.result_keys('variant'):
             if self.results['variant'][reskey].scale: # Scale the result dynamically
                 self.results['variant'][reskey].values = np.einsum('ij,j->ij', self.results['variant'][reskey].values, self.rescale_vec)
 
         # Calculate cumulative results
-        for key in cvd.result_flows.keys():
-            self.results[f'cum_{key}'][:] = np.cumsum(self.results[f'new_{key}'][:], axis=0)
+        for key in cvd.result_flows2.keys():
+            self.results[f'cum_{key}'][:] = np.cumsum(self.results[f'new_{key}'][:], axis=0) # todo: change this to be the cumsum of new_*
         for key in cvd.result_flows_by_variant.keys():
             for variant in range(self['n_variants']):
                 self.results['variant'][f'cum_{key}'][variant, :] = np.cumsum(self.results['variant'][f'new_{key}'][variant, :], axis=0)
@@ -1106,8 +1121,9 @@ class Sim(cvb.BaseSim):
         string = f'Simulation{labelstr} summary:\n'
         for key in self.result_keys():
             if full or key.startswith('cum_'):
-                val = np.round(summary[key])
-                string += f'   {val:10,.0f} {self.results[key].name.lower()}\n'.replace(',', sep) # Use replace since it's more flexible
+                if key in cvd.result_keys_we_want:
+                    val = np.round(summary[key])
+                    string += f'   {val:10,.0f} {self.results[key].name.lower()}\n'.replace(',', sep) # Use replace since it's more flexible
 
         # Print or return string
         if not output:
