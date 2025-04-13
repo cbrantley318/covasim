@@ -71,11 +71,12 @@ if __name__ == "__main__":
     N = 100
     connections_per_person = 4
     t = 90
-    beta = 1048
+    beta = 0.016*1000*64
     new_beta_value = 0
     date_intervention = 0
     initial_infections = 10
     
+    # print the results
     result = run_simulation(N, connections_per_person, t, beta, new_beta_value, date_intervention, initial_infections)
     print(f"States count: {result['states_count']}")
     print(f"Num exp array: {result['num_exp']}")

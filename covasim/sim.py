@@ -17,6 +17,7 @@ from . import interventions as cvi
 from . import immunity as cvimm
 from . import analysis as cva
 from .settings import options as cvo
+from . import interface2
 
 # Almost everything in this file is contained in the Sim class
 __all__ = ['Sim', 'diff_sims', 'demo', 'AlreadyRunError']
@@ -708,61 +709,37 @@ class Sim(cvb.BaseSim):
         # Initialization steps -- start the timer, initialize the sim and the seed, and check that the sim hasn't been run
         T = sc.timer()
 
-        if not self.initialized:
-            self.initialize()
-            self._orig_pars = sc.dcp(self.pars) # Create a copy of the parameters, to restore after the run, in case they are dynamically modified
+        # Call the C interface
+        N = self['pop_size']
+        connections_per_person = 10  # Default value, can be adjusted based on your needs
+        t = until
+        beta = int(self['beta'] * 1000 * 64)  # Convert to integer for C interface,
+        new_beta_value = 0  # Default value, can be adjusted based on your needs
+        date_intervention = 0  # Default value, can be adjusted based on your needs
+        initial_infections = self['pop_infected']
 
-        if verbose is None:
-            verbose = self['verbose']
+        # Run the C simulation
+        c_result = interface2.run_simulation(N, connections_per_person, t, beta, new_beta_value, date_intervention, initial_infections)
+        # Map C simulation results back to self.results arrays
+        self.results['n_exposed'].values = c_result['num_exp']
+        self.results['n_infectious'].values = c_result['num_inf'] 
+        self.results['n_symptomatic'].values = c_result['num_symp']
+        self.results['n_dead'].values = c_result['num_dead']
+        self.results['n_severe'].values = c_result['num_severe']
+        self.results['n_critical'].values = c_result['num_crit']
+        self.results['n_recovered'].values = c_result['num_recovered']
 
-        if reset_seed:
-            # Reset the RNG. If the simulation is newly created, then the RNG will be reset by sim.initialize() so the use case
-            # for resetting the seed here is if the simulation has been partially run, and changing the seed is required
-            self.set_seed()
-
-        # Check for AlreadyRun errors
-        errormsg = None
-        until = self.npts if until is None else self.day(until)
-        if until > self.npts:
-            errormsg = f'Requested to run until t={until} but the simulation end is t={self.npts}'
-        if self.t >= until: # NB. At the start, self.t is None so this check must occur after initialization
-            errormsg = f'Simulation is currently at t={self.t}, requested to run until t={until} which has already been reached'
-        if self.complete:
-            errormsg = 'Simulation is already complete (call sim.initialize() to re-run)'
-        if self.people.t not in [self.t, self.t-1]: # Depending on how the sim stopped, either of these states are possible
-            errormsg = f'The simulation has been run independently from the people (t={self.t}, people.t={self.people.t}): if this is intentional, manually set sim.people.t = sim.t. Remember to save the people object before running the sim.'
-        if errormsg:
-            raise AlreadyRunError(errormsg)
-
-        # Main simulation loop
-        while self.t < until:
-
-            # Check if we were asked to stop
-            elapsed = T.toc(output=True)
-            if self['timelimit'] and elapsed > self['timelimit']:
-                sc.printv(f"Time limit ({self['timelimit']} s) exceeded; call sim.finalize() to compute results if desired", 1, verbose)
-                return
-            elif self['stopping_func'] and self['stopping_func'](self):
-                sc.printv("Stopping function terminated the simulation; call sim.finalize() to compute results if desired", 1, verbose)
-                return
-
-            # Print progress
-            if verbose:
-                simlabel = f'"{self.label}": ' if self.label else ''
-                string = f'  Running {simlabel}{self.datevec[self.t]} ({self.t:2.0f}/{self.pars["n_days"]}) ({elapsed:0.2f} s) '
-                if verbose >= 2:
-                    sc.heading(string)
-                elif verbose>0:
-                    if not (self.t % int(1.0/verbose)):
-                        sc.progressbar(self.t+1, self.npts, label=string, length=20, newline=True)
-
-            # Do the heavy lifting -- actually run the model!
-            self.step()
-
-        # If simulation reached the end, finalize the results
-        if self.complete:
-            self.finalize(verbose=verbose, restore_pars=restore_pars)
-            sc.printv(f'Run finished after {elapsed:0.2f} s.\n', 1, verbose)
+        self.results['new_infections'].values = c_result['new_inf']
+        self.results['new_symptomatic'].values = c_result['new_symp'] 
+        self.results['new_deaths'].values = c_result['new_dead']
+        self.results['new_severe'].values = c_result['new_severe']
+        self.results['new_critical'].values = c_result['new_crit']
+        self.results['new_recoveries'].values = c_result['new_recovered']
+        # Print timing information
+        elapsed = T.toc(output=True)
+        if verbose:
+            sc.printv(f'C simulation finished after {elapsed:0.2f} s.\n', 1, verbose)
+    
         return self
 
 
